@@ -1,0 +1,75 @@
+{
+  "version": "0.3.0",
+  "scope": "project",
+  "selectedTree": "4878a411-b78e-4a21-8c51-e638aab9ae55",
+  "trees": [
+    {
+      "version": "0.3.0",
+      "scope": "tree",
+      "id": "4878a411-b78e-4a21-8c51-e638aab9ae55",
+      "title": "mytree",
+      "description": "",
+      "root": "124c192e-262c-4b19-aef6-79494698a10d",
+      "properties": {},
+      "nodes": {
+        "124c192e-262c-4b19-aef6-79494698a10d": {
+          "id": "124c192e-262c-4b19-aef6-79494698a10d",
+          "name": "Sequenece",
+          "title": "Sequence",
+          "description": "",
+          "properties": {},
+          "display": {
+            "x": 204,
+            "y": 0
+          },
+          "children": [
+            "5016c73d-d19e-4c91-b80f-3d0755c0d7b2",
+            "488dba47-3cfd-46f2-8ff2-3a213f5320d5"
+          ]
+        },
+        "5016c73d-d19e-4c91-b80f-3d0755c0d7b2": {
+          "id": "5016c73d-d19e-4c91-b80f-3d0755c0d7b2",
+          "name": "CalcAction",
+          "title": "Runner",
+          "description": "This is a runner",
+          "properties": {
+            "test": "value"
+          },
+          "display": {
+            "x": 408,
+            "y": -48
+          }
+        },
+        "488dba47-3cfd-46f2-8ff2-3a213f5320d5": {
+          "id": "488dba47-3cfd-46f2-8ff2-3a213f5320d5",
+          "name": "CalcAction",
+          "title": "My CalcAction",
+          "description": "this is an action",
+          "properties": {},
+          "display": {
+            "x": 408,
+            "y": 36
+          }
+        }
+      },
+      "display": {
+        "camera_x": 836.5,
+        "camera_y": 456,
+        "camera_z": 1,
+        "x": 0,
+        "y": 0
+      }
+    }
+  ],
+  "custom_nodes": [
+    {
+      "version": "0.3.0",
+      "scope": "node",
+      "name": "CalcAction",
+      "category": "action",
+      "title": "CalcAction",
+      "description": "this is an action",
+      "properties": {}
+    }
+  ]
+}

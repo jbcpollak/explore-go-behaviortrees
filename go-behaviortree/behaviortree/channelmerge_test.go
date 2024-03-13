@@ -18,7 +18,7 @@ func TestChannelMerge(t *testing.T) {
 	append := func() {
 		for i := range 10 {
 			c1 <- i
-			time.Sleep(300 * time.Millisecond)
+			time.Sleep(100 * time.Millisecond)
 		}
 
 		// in some situations close might be called
@@ -43,4 +43,6 @@ func TestChannelMerge(t *testing.T) {
 
 	t.Log("waiting")
 	cm.Wait()
+
+	t.Log("shutdown complete")
 }

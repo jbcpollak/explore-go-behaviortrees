@@ -1,17 +1,20 @@
 package behaviortree
 
 import (
+	"context"
 	"testing"
 	"time"
 )
 
 func TestChannelMerge(t *testing.T) {
 
-	var cm = NewChannelMerger()
+	ctx, _ := context.WithCancel(context.Background())
+	out := make(chan int)
+	var cm = NewChannelMerger(out)
 
 	// At init time, each node would do this
 	var c1 = make(chan int)
-	cm.Add(c1)
+	cm.Add(ctx, c1)
 
 	// Goroutine internal to node that would be
 	// executed at runtime
@@ -29,7 +32,7 @@ func TestChannelMerge(t *testing.T) {
 	}
 
 	read := func() {
-		for i := range cm.out {
+		for i := range out {
 			// in production, tick on events here
 			t.Log(i)
 		}

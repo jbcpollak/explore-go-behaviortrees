@@ -1,35 +1,52 @@
 package behaviortree
 
-import "sync"
+import (
+	"context"
+	"sync"
+)
 
-type ChannelMerger struct {
+type ChannelMerger[T any] struct {
 	// TODO: change int to generic or Event interface
-	out chan int
-	cs  []chan<- int
+	out chan<- T
 	wg  sync.WaitGroup
 }
 
-func NewChannelMerger() *ChannelMerger {
-	return &ChannelMerger{out: make(chan int)}
+func NewChannelMerger[T any](out chan<- T) *ChannelMerger[T] {
+	return &ChannelMerger[T]{out: out}
 }
 
-func (cm *ChannelMerger) Add(c chan int) {
+func (cm *ChannelMerger[T]) Add(ctx context.Context, c <-chan T) {
+	select {
+	case <-ctx.Done():
+		return
+	default:
+	}
 	cm.wg.Add(1)
-	cm.cs = append(cm.cs, c)
 
-	// Start a new output goroutine for the new input channel in cs.  output
-	output := func(c <-chan int) {
-		for n := range c {
-			cm.out <- n
+	// Start a new output goroutine for the new input channel.
+	output := func() {
+		defer cm.wg.Done()
+		for {
+			select {
+			case n, ok := <-c:
+				if !ok {
+					return
+				}
+				select {
+				case cm.out <- n:
+				case <-ctx.Done():
+					return
+				}
+			case <-ctx.Done():
+				return
+			}
 		}
-		cm.wg.Done()
 	}
 
-	go output(c)
+	go output()
 }
 
 // Cannot call this until all channels have been added
-func (cm *ChannelMerger) Wait() {
+func (cm *ChannelMerger[T]) Wait() {
 	cm.wg.Wait()
-	close(cm.out)
 }

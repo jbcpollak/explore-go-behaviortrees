@@ -20,6 +20,11 @@ func TestChannelMerge(t *testing.T) {
 			c1 <- i
 			time.Sleep(300 * time.Millisecond)
 		}
+
+		// in some situations close might be called
+		// separately as part of a shutdown phase
+		// the current go-behaviortree library doesn't
+		// seem to support that afaik.
 		close(c1)
 	}
 

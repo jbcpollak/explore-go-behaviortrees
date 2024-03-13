@@ -9,10 +9,12 @@ func TestChannelMerge(t *testing.T) {
 
 	var cm = NewChannelMerger()
 
+	// At init time, each node would do this
 	var c1 = make(chan int)
-
 	cm.Add(c1)
 
+	// Goroutine internal to node that would be
+	// executed at runtime
 	append := func() {
 		for i := range 10 {
 			c1 <- i

@@ -1,4 +1,4 @@
-package main
+package gobttest
 
 import (
 	"context"
@@ -6,21 +6,15 @@ import (
 	"sync"
 	"time"
 
-	. "github.com/joeycumines/go-behaviortree"
+	bt "github.com/joeycumines/go-behaviortree"
 	"github.com/rs/zerolog/log"
+
+	cbt "gobttest/behaviortree"
 )
 
 func main() {
 	log.Info().Msg("Hello, World!")
 	ExampleBackground_asyncJobQueue()
-}
-
-func debug(label string, tick Tick) Tick {
-	return func(children []Node) (status Status, err error) {
-		status, err = tick(children)
-		log.Info().Msgf("%s returned (%v, %v)\n", label, status, err)
-		return
-	}
 }
 
 // ExampleBackground_asyncJobQueue implements a basic example of backgrounding of long-running tasks that may be
@@ -75,51 +69,51 @@ func ExampleBackground_asyncJobQueue() {
 		}()
 		// done will be closed when it's time to exit the ticker
 		done   = make(chan struct{})
-		ticker = NewTickerStopOnFailure(
+		ticker = bt.NewTickerStopOnFailure(
 			context.Background(),
 			time.Millisecond,
-			New(
-				debug("sequence", Sequence),
+			bt.New(
+				cbt.Debug("sequence", bt.Sequence),
 				// no children
-				New(debug("first node", func(children []Node) (Status, error) {
+				bt.New(cbt.Debug("first node", func(children []bt.Node) (bt.Status, error) {
 					select {
 					case <-done:
-						return Failure, nil
+						return bt.Failure, nil
 					default:
-						return Success, nil
+						return bt.Success, nil
 					}
 				})),
-				func() Node {
+				func() bt.Node {
 					// the tick is initialised once, and is stateful (though the tick it's wrapping isn't)
-					tick := debug("bg", Background(func() Tick { return Selector }))
-					return func() (Tick, []Node) {
+					tick := cbt.Debug("bg", bt.Background(func() bt.Tick { return bt.Selector }))
+					return func() (bt.Tick, []bt.Node) {
 						// this block will be refreshed each time that a new job is started
 						var (
 							job Job
 						)
-						return tick, []Node{
-							New(
-								debug("Seq", Sequence),
-								Sync([]Node{
-									New(func(children []Node) (Status, error) {
+						return tick, []bt.Node{
+							bt.New(
+								cbt.Debug("Seq", bt.Sequence),
+								bt.Sync([]bt.Node{
+									bt.New(func(children []bt.Node) (bt.Status, error) {
 										select {
 										case job = <-queue:
 											running(1)
-											return Success, nil
+											return bt.Success, nil
 										default:
-											return Failure, nil
+											return bt.Failure, nil
 										}
 									}),
-									New(Async(func(children []Node) (Status, error) {
+									bt.New(bt.Async(func(children []bt.Node) (bt.Status, error) {
 										defer running(-1)
 										doWorker(job)
-										return Success, nil
+										return bt.Success, nil
 									})),
 								})...,
 							),
 							// no job available - success
-							New(func(children []Node) (Status, error) {
-								return Success, nil
+							bt.New(func(children []bt.Node) (bt.Status, error) {
+								return bt.Success, nil
 							}),
 						}
 					}
@@ -179,91 +173,91 @@ func ExampleContext() {
 	defer cancel()
 
 	var (
-		btCtx = new(Context).WithTimeout(ctx, time.Millisecond*100)
-		debug = func(args ...interface{}) Tick {
-			return func([]Node) (Status, error) {
+		btCtx = new(bt.Context).WithTimeout(ctx, time.Millisecond*100)
+		debug = func(args ...interface{}) bt.Tick {
+			return func([]bt.Node) (bt.Status, error) {
 				fmt.Println(args...)
-				return Success, nil
+				return bt.Success, nil
 			}
 		}
 		counter      int
-		counterEqual = func(v int) Tick {
-			return func([]Node) (Status, error) {
+		counterEqual = func(v int) bt.Tick {
+			return func([]bt.Node) (bt.Status, error) {
 				if counter == v {
-					return Success, nil
+					return bt.Success, nil
 				}
-				return Failure, nil
+				return bt.Failure, nil
 			}
 		}
-		counterInc Tick = func([]Node) (Status, error) {
+		counterInc bt.Tick = func([]bt.Node) (bt.Status, error) {
 			counter++
 			//fmt.Printf("counter = %d\n", counter)
-			return Success, nil
+			return bt.Success, nil
 		}
-		ticker = NewTicker(ctx, time.Millisecond, New(
-			Sequence,
-			New(
-				Selector,
-				New(Not(btCtx.Err)),
-				New(
-					Sequence,
-					New(debug(`(re)initialising btCtx...`)),
-					New(btCtx.Init),
-					New(Not(btCtx.Err)),
+		ticker = bt.NewTicker(ctx, time.Millisecond, bt.New(
+			bt.Sequence,
+			bt.New(
+				bt.Selector,
+				bt.New(bt.Not(btCtx.Err)),
+				bt.New(
+					bt.Sequence,
+					bt.New(debug(`(re)initialising btCtx...`)),
+					bt.New(btCtx.Init),
+					bt.New(bt.Not(btCtx.Err)),
 				),
 			),
-			New(
-				Selector,
-				New(
-					Sequence,
-					New(counterEqual(0)),
-					New(debug(`blocking on context-enabled tick...`)),
-					New(
-						btCtx.Tick(func(ctx context.Context, children []Node) (Status, error) {
+			bt.New(
+				bt.Selector,
+				bt.New(
+					bt.Sequence,
+					bt.New(counterEqual(0)),
+					bt.New(debug(`blocking on context-enabled tick...`)),
+					bt.New(
+						btCtx.Tick(func(ctx context.Context, children []bt.Node) (bt.Status, error) {
 							fmt.Printf("NOTE children (%d) passed through\n", len(children))
 							<-ctx.Done()
-							return Success, nil
+							return bt.Success, nil
 						}),
-						New(Sequence),
-						New(Sequence),
+						bt.New(bt.Sequence),
+						bt.New(bt.Sequence),
 					),
-					New(counterInc),
+					bt.New(counterInc),
 				),
-				New(
-					Sequence,
-					New(counterEqual(1)),
-					New(debug(`blocking on done...`)),
-					New(btCtx.Done),
-					New(counterInc),
+				bt.New(
+					bt.Sequence,
+					bt.New(counterEqual(1)),
+					bt.New(debug(`blocking on done...`)),
+					bt.New(btCtx.Done),
+					bt.New(counterInc),
 				),
-				New(
-					Sequence,
-					New(counterEqual(2)),
-					New(debug(`canceling local then rechecking the above...`)),
-					New(btCtx.Cancel),
-					New(btCtx.Err),
-					New(btCtx.Tick(func(ctx context.Context, children []Node) (Status, error) {
+				bt.New(
+					bt.Sequence,
+					bt.New(counterEqual(2)),
+					bt.New(debug(`canceling local then rechecking the above...`)),
+					bt.New(btCtx.Cancel),
+					bt.New(btCtx.Err),
+					bt.New(btCtx.Tick(func(ctx context.Context, children []bt.Node) (bt.Status, error) {
 						<-ctx.Done()
-						return Success, nil
+						return bt.Success, nil
 					})),
-					New(btCtx.Done),
-					New(counterInc),
+					bt.New(btCtx.Done),
+					bt.New(counterInc),
 				),
-				New(
-					Sequence,
-					New(counterEqual(3)),
-					New(debug(`canceling parent then rechecking the above...`)),
-					New(func([]Node) (Status, error) {
+				bt.New(
+					bt.Sequence,
+					bt.New(counterEqual(3)),
+					bt.New(debug(`canceling parent then rechecking the above...`)),
+					bt.New(func([]bt.Node) (bt.Status, error) {
 						cancel()
-						return Success, nil
+						return bt.Success, nil
 					}),
-					New(btCtx.Err),
-					New(btCtx.Tick(func(ctx context.Context, children []Node) (Status, error) {
+					bt.New(btCtx.Err),
+					bt.New(btCtx.Tick(func(ctx context.Context, children []bt.Node) (bt.Status, error) {
 						<-ctx.Done()
-						return Success, nil
+						return bt.Success, nil
 					})),
-					New(btCtx.Done),
-					New(debug(`exiting...`)),
+					bt.New(btCtx.Done),
+					bt.New(debug(`exiting...`)),
 				),
 			),
 		))

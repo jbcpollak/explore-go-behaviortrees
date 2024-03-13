@@ -6,17 +6,22 @@ import (
 )
 
 type ChannelMerger[T any] struct {
+	ctx context.Context
 	out chan<- T
 	wg  sync.WaitGroup
 }
 
-func NewChannelMerger[T any](out chan<- T) *ChannelMerger[T] {
-	return &ChannelMerger[T]{out: out}
+func NewChannelMerger[T any](ctx context.Context, out chan<- T) *ChannelMerger[T] {
+	return &ChannelMerger[T]{
+		ctx,
+		out,
+		sync.WaitGroup{},
+	}
 }
 
-func (cm *ChannelMerger[T]) Add(ctx context.Context, c <-chan T) {
+func (cm *ChannelMerger[T]) Add(c <-chan T) {
 	select {
-	case <-ctx.Done():
+	case <-cm.ctx.Done():
 		return
 	default:
 	}
@@ -33,13 +38,13 @@ func (cm *ChannelMerger[T]) Add(ctx context.Context, c <-chan T) {
 				if !ok {
 					return
 				}
-			case <-ctx.Done():
+			case <-cm.ctx.Done():
 				return
 			}
 
 			select {
 			case cm.out <- n:
-			case <-ctx.Done():
+			case <-cm.ctx.Done():
 				return
 			}
 		}

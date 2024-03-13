@@ -25,9 +25,13 @@ type (
 )
 
 func NewAsyncTicker(ctx context.Context, root_node bt.Node) bt.Ticker {
+
+	// I wonder if setting up the cancel should be left to the caller
 	ctx, cancel := context.WithCancel(ctx)
+
+	// setup the behavior for the event channels
 	tick_events := make(chan Event)
-	var tick_merger = NewChannelMerger(tick_events)
+	var tick_merger = NewChannelMerger(ctx, tick_events)
 	ticker := &asyncTicker{
 		ctx:         ctx,
 		node:        root_node,

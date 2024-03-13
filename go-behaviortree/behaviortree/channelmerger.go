@@ -6,7 +6,6 @@ import (
 )
 
 type ChannelMerger[T any] struct {
-	// TODO: change int to generic or Event interface
 	out chan<- T
 	wg  sync.WaitGroup
 }
@@ -27,16 +26,19 @@ func (cm *ChannelMerger[T]) Add(ctx context.Context, c <-chan T) {
 	output := func() {
 		defer cm.wg.Done()
 		for {
+			var n T
+			var ok bool
 			select {
-			case n, ok := <-c:
+			case n, ok = <-c:
 				if !ok {
 					return
 				}
-				select {
-				case cm.out <- n:
-				case <-ctx.Done():
-					return
-				}
+			case <-ctx.Done():
+				return
+			}
+
+			select {
+			case cm.out <- n:
 			case <-ctx.Done():
 				return
 			}

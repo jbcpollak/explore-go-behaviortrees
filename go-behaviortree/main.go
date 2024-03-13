@@ -14,7 +14,7 @@ import (
 
 func main() {
 	log.Info().Msg("Hello, World!")
-	ExampleBackground_asyncJobQueue()
+	ExampleEventContext()
 }
 
 // ExampleBackground_asyncJobQueue implements a basic example of backgrounding of long-running tasks that may be
@@ -165,6 +165,120 @@ func ExampleBackground_asyncJobQueue() {
 	//[worker] job "3. 150ms" FINISHED
 	//[client] job "3. 150ms" FINISHED
 	//running jobs: 0
+}
+
+// ExampleContext demonstrates how the Context implementation may be used to integrate with the context package
+func ExampleEventContext() {
+	tick_events := make(chan cbt.Event)
+	tick_merger := cbt.NewChannelMerger(tick_events)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var (
+		btCtx = new(bt.Context).WithTimeout(ctx, time.Millisecond*100)
+		debug = func(args ...interface{}) bt.Tick {
+			return func([]bt.Node) (bt.Status, error) {
+				fmt.Println(args...)
+				return bt.Success, nil
+			}
+		}
+		counter      int
+		counterEqual = func(v int) bt.Tick {
+			return func([]bt.Node) (bt.Status, error) {
+				if counter == v {
+					return bt.Success, nil
+				}
+				return bt.Failure, nil
+			}
+		}
+		counterInc bt.Tick = func([]bt.Node) (bt.Status, error) {
+			counter++
+			//fmt.Printf("counter = %d\n", counter)
+			return bt.Success, nil
+		}
+		ticker = cbt.NewAsyncTicker(ctx, bt.New(
+			bt.Sequence,
+			bt.New(
+				bt.Selector,
+				bt.New(bt.Not(btCtx.Err)),
+				bt.New(
+					bt.Sequence,
+					bt.New(debug(`(re)initialising btCtx...`)),
+					bt.New(btCtx.Init),
+					bt.New(bt.Not(btCtx.Err)),
+				),
+			),
+			bt.New(
+				bt.Selector,
+				bt.New(
+					bt.Sequence,
+					bt.New(counterEqual(0)),
+					bt.New(debug(`blocking on context-enabled tick...`)),
+					bt.New(
+						btCtx.Tick(func(ctx context.Context, children []bt.Node) (bt.Status, error) {
+							fmt.Printf("NOTE children (%d) passed through\n", len(children))
+							<-ctx.Done()
+							return bt.Success, nil
+						}),
+						bt.New(bt.Sequence),
+						bt.New(bt.Sequence),
+					),
+					bt.New(counterInc),
+				),
+				bt.New(
+					bt.Sequence,
+					bt.New(counterEqual(1)),
+					bt.New(debug(`blocking on done...`)),
+					bt.New(btCtx.Done),
+					bt.New(counterInc),
+				),
+				bt.New(
+					bt.Sequence,
+					bt.New(counterEqual(2)),
+					bt.New(debug(`canceling local then rechecking the above...`)),
+					bt.New(btCtx.Cancel),
+					bt.New(btCtx.Err),
+					bt.New(btCtx.Tick(func(ctx context.Context, children []bt.Node) (bt.Status, error) {
+						<-ctx.Done()
+						return bt.Success, nil
+					})),
+					bt.New(btCtx.Done),
+					bt.New(counterInc),
+				),
+				bt.New(
+					bt.Sequence,
+					bt.New(counterEqual(3)),
+					bt.New(debug(`canceling parent then rechecking the above...`)),
+					bt.New(func([]bt.Node) (bt.Status, error) {
+						cancel()
+						return bt.Success, nil
+					}),
+					bt.New(btCtx.Err),
+					bt.New(btCtx.Tick(func(ctx context.Context, children []bt.Node) (bt.Status, error) {
+						<-ctx.Done()
+						return bt.Success, nil
+					})),
+					bt.New(btCtx.Done),
+					bt.New(debug(`exiting...`)),
+				),
+			),
+		))
+	)
+
+	<-ticker.Done()
+
+	//output:
+	//(re)initialising btCtx...
+	//blocking on context-enabled tick...
+	//NOTE children (2) passed through
+	//(re)initialising btCtx...
+	//blocking on done...
+	//(re)initialising btCtx...
+	//canceling local then rechecking the above...
+	//(re)initialising btCtx...
+	//canceling parent then rechecking the above...
+	//exiting...
 }
 
 // ExampleContext demonstrates how the Context implementation may be used to integrate with the context package

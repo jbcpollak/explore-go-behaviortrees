@@ -3,6 +3,7 @@ package behaviortree
 import "sync"
 
 type ChannelMerger struct {
+	// TODO: change int to generic or Event interface
 	out chan int
 	cs  []chan<- int
 	wg  sync.WaitGroup

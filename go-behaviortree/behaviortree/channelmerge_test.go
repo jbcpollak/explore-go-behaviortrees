@@ -23,6 +23,7 @@ func TestChannelMerge(t *testing.T) {
 
 	read := func() {
 		for i := range cm.out {
+			// in production, tick on events here
 			t.Log(i)
 		}
 	}
